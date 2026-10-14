@@ -84,7 +84,37 @@ python scripts/build_index.py --data-version v2
 
 ---
 
-## 5. Running Tests
+## 5. Grounded RAG Pipeline (`src/rag/pipeline.py`)
+
+### Features
+* **Semantic Retrieval**: Queries the versioned ChromaDB index for the `top_k` most relevant chunks.
+* **Grounded Prompting**: Implements strict grounding rules compelling the model to answer only using facts directly stated in the context, and explicitly output `"I don't know based on the provided documentation."` when the context is insufficient.
+* **Google Gemini Integration**: Uses model configured in `configs/config.yaml` (`gemini-2.5-flash`), with token usage tracking (`prompt_tokens`, `completion_tokens`, `total_tokens`) and latency measurement.
+* **Resilience**: Exponential backoff with jitter on HTTP 429 rate limits or transient 5xx errors (up to 4 retry attempts).
+* **Structured Output (`RAGResponse`)**:
+  * `query`: Input question
+  * `answer`: Generated answer
+  * `contexts`: Raw text of retrieved chunks
+  * `retrieved_chunks`: Detailed metadata, scores, and chunk coordinates
+  * `latency`: Response latency in seconds
+  * `token_counts`: Prompt, completion, and total tokens
+  * `version_id`: Target collection version ID
+
+### Query CLI
+```bash
+# Query the live Gemini RAG assistant over version 1 docs
+python src/rag/pipeline.py --query "How do path parameters work in FastAPI?" --data-version v1
+
+# Query with explicit top_k and version_id
+python src/rag/pipeline.py --query "How does MLflow tracking log metrics?" --version-id v1_9ac1e3a5 --top-k 5
+
+# Offline mock test (verifies retrieval and prompt formatting without API credits)
+python src/rag/pipeline.py --query "How to use Pydantic models in FastAPI?" --data-version v1 --mock
+```
+
+---
+
+## 6. Running Tests
 ```bash
 python -m unittest discover -s tests
 ```
