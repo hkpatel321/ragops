@@ -1,0 +1,67 @@
+# RAGOps Centralized Configuration
+
+# Project Metadata
+project:
+  name: "ragops"
+  version: "1.0.0"
+  description: "Continuous LLM-Based Evaluation and Drift Monitoring for RAG Pipelines"
+
+# Chunking Configuration
+chunking:
+  chunk_size: 512
+  overlap: 64
+  separators: ["\n\n", "\n", " ", ""]
+
+# Embedding Configuration
+embedding:
+  model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  device: "cpu" # 'cuda' or 'cpu'
+  normalize_embeddings: true
+  batch_size: 32
+
+# Vector Store (ChromaDB) Configuration
+vectorstore:
+  persist_directory: "data/chroma_db"
+  collection_name: "ragops_docs"
+  top_k: 4
+  distance_metric: "cosine"
+
+# LLM Configuration (Google Gemini)
+llm:
+  generator:
+    model_name: "gemini-2.5-flash"
+    temperature: 0.2
+    max_output_tokens: 1024
+    top_p: 0.95
+  judge:
+    model_name: "gemini-2.5-pro"
+    temperature: 0.0
+    max_output_tokens: 2048
+    top_p: 0.90
+
+# Evaluation & Quality Gate Thresholds
+thresholds:
+  faithfulness: 0.80
+  answer_relevance: 0.85
+  context_precision: 0.75
+  context_recall: 0.75
+  max_latency_seconds: 3.0
+
+# Monitoring & Drift Detection
+monitoring:
+  reference_data_path: "data/test_sets/reference_queries.json"
+  drift_report_path: "data/monitoring/drift_report.html"
+  drift_metrics_path: "data/monitoring/drift_metrics.json"
+  embedding_drift_threshold: 0.15
+  response_length_drift_threshold: 0.20
+
+# MLflow Tracking
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "RAGOps-Evaluation"
+
+# API & Server Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
