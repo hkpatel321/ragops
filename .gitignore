@@ -48,8 +48,10 @@ htmlcov/
 
 # Chroma & MLflow local stores
 data/chroma_db/
+data/test_chroma_db/
 mlruns/
 mlartifacts/
+*.db
 
 # Monitoring & Logs
 *.log

@@ -1,0 +1,14 @@
+{
+  "data_version": "v1",
+  "version_id": "v1_9ac1e3a5",
+  "config_hash": "9ac1e3a5",
+  "doc_count": 19,
+  "chunk_count": 885,
+  "avg_chunk_chars": 345.7,
+  "chunk_size": 512,
+  "overlap": 64,
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "distance_metric": "cosine",
+  "build_duration_sec": 45.7,
+  "timestamp": "2026-10-14 22:11:51"
+}

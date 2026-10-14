@@ -34,7 +34,57 @@ git add data/raw/v1.dvc data/raw/v2.dvc data/raw/.gitignore
 git commit -m "update raw docs with DVC"
 ```
 
-### Running Tests
+---
+
+## 2. Markdown-Aware Chunking (`src/chunking`)
+
+### Features
+* Splits along markdown structural boundaries (`#`, `##`, `###` headers, code blocks, paragraphs) to avoid splitting code or logic midway.
+* Config-driven sizing via `configs/config.yaml`:
+  * `chunk_size`: 512
+  * `overlap`: 64
+* Generates `TextChunk` models with enriched chunk-level metadata:
+  * `chunk_id`: `{version}_{source}_{doc_stem}_{chunk_idx}` (e.g. `v1_fastapi_index_0001`)
+  * `section`: Section title (extracted from markdown headers)
+  * `chunk_char_count`: Length of the chunk text
+
+---
+
+## 3. Dense Embeddings & Vector Store (`src/embedding`, `src/vectorstore`)
+
+### Embeddings (`src/embedding/embedder.py`)
+* Model: `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional dense vectors).
+* Configurable normalization (L2 cosine similarity ready) and device selection (CPU/CUDA).
+* ChromaDB integration via custom `ChromaEmbeddingFunction`.
+
+### ChromaDB Store (`src/vectorstore/store.py`)
+* Persistent vector database at `data/chroma_db`.
+* **Version Identification**:
+  * Each build is tagged with a composite version identifier: `version_id = f"{data_version}_{config_hash}"` (e.g. `v1_9ac1e3a5`).
+  * `config_hash` is an 8-character deterministic SHA-256 hash computed from `chunk_size`, `overlap`, `embedding_model`, and `distance_metric`.
+* Isolated collection names per build (e.g. `ragops_docs_v1_9ac1e3a5`).
+
+---
+
+## 4. Index Build & MLflow Tracking (`scripts/build_index.py`)
+
+### Usage
+```bash
+python scripts/build_index.py --data-version v1
+python scripts/build_index.py --data-version v2
+```
+
+### MLflow Logging
+* **Parameters**: `data_version`, `version_id`, `config_hash`, `chunk_size`, `overlap`, `embedding_model`, `distance_metric`, `collection_name`.
+* **Metrics**: `doc_count`, `chunk_count`, `avg_chunk_chars`, `build_duration_sec`.
+* **Artifacts**:
+  * `metadata/index_summary.json`
+  * `chroma_store/` (Full ChromaDB vector database files)
+* **Tags**: `stage: index_build`, `version_id`, `data_version`.
+
+---
+
+## 5. Running Tests
 ```bash
 python -m unittest discover -s tests
 ```
