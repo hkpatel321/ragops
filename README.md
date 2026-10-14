@@ -114,7 +114,37 @@ python src/rag/pipeline.py --query "How to use Pydantic models in FastAPI?" --da
 
 ---
 
-## 6. Running Tests
+## 6. Golden Evaluation Dataset (`scripts/make_golden_set.py`, `eval/golden_v1.jsonl`)
+
+### Overview
+* Contains 75 carefully stratified question/ground-truth-answer pairs extracted and generated from `v1` documentation chunks.
+* Balanced representation across sources:
+  * **FastAPI**: 37 pairs
+  * **MLflow**: 38 pairs
+* Balanced distribution across query archetypes:
+  * **Factual** (25 pairs): Inquiring about concepts, definitions, components, and return types.
+  * **How-To** (25 pairs): Practical syntax, code examples, setup patterns, and configuration steps.
+  * **Version-Specific** (25 pairs): Focusing on v1 conventions, release 0.100.0 / 2.10.0 specifics.
+* **Retrieval Ground Truth**: Each item carries `ground_truth_chunk_id` and `ground_truth_context` linking directly to the ChromaDB chunk ID used as the ground truth target during retrieval evaluation.
+* **DVC Tracking**: `eval/golden_v1.jsonl` is tracked and versioned using DVC (`eval/golden_v1.jsonl.dvc`).
+
+### Commands
+```bash
+# Generate 75 Q&A pairs (uses Gemini if API key set, or deterministic grounded synthesis)
+python scripts/make_golden_set.py --count 75
+
+# Inspect 10 random samples for manual review
+python scripts/inspect_golden_set.py --samples 10
+
+# Track with DVC
+dvc add eval/golden_v1.jsonl
+git add eval/golden_v1.jsonl.dvc eval/.gitignore
+git commit -m "update golden dataset with DVC"
+```
+
+---
+
+## 7. Running Tests
 ```bash
 python -m unittest discover -s tests
 ```
