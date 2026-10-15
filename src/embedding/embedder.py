@@ -4,8 +4,8 @@ Wraps open-source sentence-transformers (e.g. all-MiniLM-L6-v2 or bge-small-en-v
 providing thread-safe, batch-friendly embedding generation and ChromaDB integration.
 """
 
-from typing import List, Optional, Union
-import numpy as np
+from typing import List, Optional
+
 from sentence_transformers import SentenceTransformer
 
 from src.config import cfg

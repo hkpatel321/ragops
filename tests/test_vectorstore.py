@@ -3,6 +3,7 @@ Unit tests for ChromaDB vector store, version tagging, and retrieval.
 """
 
 import unittest
+
 from src.chunking.markdown_chunker import TextChunk
 from src.vectorstore.store import ChromaStore, compute_config_hash, compute_version_id
 

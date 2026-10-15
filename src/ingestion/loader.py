@@ -4,10 +4,9 @@ Recursively parses raw markdown documentation files and extracts structured Docu
 retaining complete provenance metadata (source, version, file path, title, char count).
 """
 
-import os
-import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
 from pydantic import BaseModel, Field
 
 from src.logger import logger

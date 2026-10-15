@@ -10,7 +10,6 @@ Usage:
 import argparse
 import json
 import os
-import shutil
 import sys
 import time
 from pathlib import Path
@@ -22,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import mlflow
+
 from src.chunking.markdown_chunker import MarkdownChunker
 from src.config import cfg
 from src.ingestion.loader import load_documents_from_directory

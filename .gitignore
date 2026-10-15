@@ -60,6 +60,7 @@ data/monitoring/*.html
 data/monitoring/*.json
 data/artifacts/judge_cache.json
 eval/*report*.json
+eval/*summary*.md
 
 # DVC local cache and remotes
 .dvc/cache

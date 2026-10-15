@@ -6,6 +6,7 @@ Loads YAML configuration with environment variable overrides and validates with 
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import yaml
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -75,6 +76,7 @@ class ThresholdsConfig(BaseModel):
     hit_rate_at_k: float = 0.80
     mrr_at_k: float = 0.60
     max_latency_seconds: float = 3.0
+    max_regression_pct: float = 10.0
 
 
 class MonitoringConfig(BaseModel):

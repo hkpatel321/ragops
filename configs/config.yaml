@@ -48,6 +48,7 @@ thresholds:
   hit_rate_at_k: 0.80
   mrr_at_k: 0.60
   max_latency_seconds: 3.0
+  max_regression_pct: 10.0
 
 # Monitoring & Drift Detection
 monitoring:

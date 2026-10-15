@@ -7,6 +7,7 @@ Calculates deterministic ranking and retrieval accuracy metrics:
 """
 
 from typing import Any, Dict, List, Optional, Set, Union
+
 import numpy as np
 
 

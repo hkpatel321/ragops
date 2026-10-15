@@ -3,7 +3,8 @@ Unit tests for the RAG pipeline, prompt construction, and response structure.
 """
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
 from src.rag.pipeline import GROUNDED_PROMPT_TEMPLATE, RAGPipeline, RAGResponse
 
 

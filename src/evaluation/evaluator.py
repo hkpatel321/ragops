@@ -10,17 +10,18 @@ Coordinates retrieval and generation evaluation:
 
 import time
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 
 from src.config import cfg
-from src.logger import logger
+from src.evaluation.judge_llm import GeminiJudge
 from src.evaluation.retrieval_metrics import (
     compute_retrieval_metrics,
     hit_rate_at_k,
-    reciprocal_rank_at_k,
     recall_at_k,
+    reciprocal_rank_at_k,
 )
-from src.evaluation.judge_llm import GeminiJudge
+from src.logger import logger
 
 
 class RAGEvaluator:

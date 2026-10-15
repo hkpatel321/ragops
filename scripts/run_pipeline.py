@@ -4,7 +4,7 @@ Provides CLI commands to run ingestion, chunking, indexing, evaluation, and serv
 """
 
 import argparse
-import sys
+
 from src.config import cfg
 from src.logger import logger
 

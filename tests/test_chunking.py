@@ -3,6 +3,7 @@ Unit tests for markdown-aware chunking and metadata preservation.
 """
 
 import unittest
+
 from src.chunking.markdown_chunker import MarkdownChunker, TextChunk
 from src.ingestion.loader import Document
 

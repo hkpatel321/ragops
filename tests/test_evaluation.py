@@ -6,20 +6,19 @@ Unit tests for RAGOps evaluation module:
 - RAGEvaluator and quality gates
 """
 
-import json
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from src.evaluation.retrieval_metrics import (
-    hit_rate_at_k,
-    reciprocal_rank_at_k,
-    recall_at_k,
-    compute_retrieval_metrics,
-)
-from src.evaluation.judge_llm import JudgeCache, GeminiJudge
 from src.evaluation.evaluator import RAGEvaluator
+from src.evaluation.judge_llm import GeminiJudge, JudgeCache
+from src.evaluation.retrieval_metrics import (
+    compute_retrieval_metrics,
+    hit_rate_at_k,
+    recall_at_k,
+    reciprocal_rank_at_k,
+)
 
 
 class TestRetrievalMetrics(unittest.TestCase):
@@ -132,6 +131,68 @@ class TestGeminiJudgeAndEvaluator(unittest.TestCase):
         self.assertIn("quality_gates", report)
         self.assertIn("thresholds", report)
         self.assertEqual(report["metrics"]["total_evaluated"], 2)
+
+
+class TestQualityGates(unittest.TestCase):
+    def test_quality_gates_threshold_pass(self):
+        from scripts.quality_gate import evaluate_quality_gates
+
+        current_metrics = {
+            "hit_rate@4": 0.90,
+            "mrr@4": 0.75,
+            "recall@4": 0.85,
+            "faithfulness": 0.92,
+            "answer_relevancy": 0.88,
+            "context_precision": 0.82,
+        }
+        thresholds = {
+            "hit_rate_at_k": 0.80,
+            "mrr_at_k": 0.60,
+            "faithfulness": 0.80,
+            "answer_relevance": 0.80,
+            "context_precision": 0.75,
+        }
+        passed, results = evaluate_quality_gates(
+            current_metrics=current_metrics,
+            thresholds=thresholds,
+            baseline_metrics=None,
+            max_regression_pct=10.0,
+        )
+        self.assertTrue(passed)
+        self.assertTrue(all(r["passed"] for r in results))
+
+    def test_quality_gates_regression_failure(self):
+        from scripts.quality_gate import evaluate_quality_gates
+
+        baseline_metrics = {
+            "faithfulness": 0.95,
+            "answer_relevancy": 0.90,
+        }
+        # Faithfulness dropped from 0.95 to 0.81 (14.7% drop > 10% max regression)
+        current_metrics = {
+            "hit_rate@4": 0.85,
+            "mrr@4": 0.70,
+            "recall@4": 0.80,
+            "faithfulness": 0.81,
+            "answer_relevancy": 0.88,
+            "context_precision": 0.80,
+        }
+        thresholds = {
+            "faithfulness": 0.80,
+            "answer_relevance": 0.80,
+            "context_precision": 0.75,
+        }
+        passed, results = evaluate_quality_gates(
+            current_metrics=current_metrics,
+            thresholds=thresholds,
+            baseline_metrics=baseline_metrics,
+            max_regression_pct=10.0,
+        )
+        self.assertFalse(passed)
+        # Find faithfulness result
+        faith_res = next(r for r in results if r["metric"] == "faithfulness")
+        self.assertFalse(faith_res["passed"])
+        self.assertGreater(faith_res["regression_pct"], 10.0)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ Unit tests for configuration loading and validation using standard unittest.
 """
 
 import unittest
+
 from src.config import AppConfig, load_config
 
 

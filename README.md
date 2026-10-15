@@ -177,14 +177,37 @@ python scripts/run_eval.py --golden-set eval/golden_v1.jsonl --data-version v1 -
 ```
 
 #### Run Judge Calibration against 30 Manually Labeled Samples
-Benchmark the Gemini Judge against 30 curated, manually annotated samples covering high-quality, hallucinated, off-topic, and out-of-context edge cases:
+#### Run Quality Gate & MLflow Regression Checker
 ```bash
-python scripts/judge_calibration.py --dataset eval/calibration_samples_30.jsonl --tolerance 0.20
+# Verify absolute quality thresholds and check for performance regressions (>10%) vs MLflow baseline
+python scripts/quality_gate.py --report eval/eval_report_latest.json --max-regression-pct 10.0
 ```
 
 ---
 
-## 8. Running Tests
+## 8. Automated CI/CD Quality Gates (`rag_ci.yml`)
+
+The repository includes an end-to-end continuous integration workflow in [`.github/workflows/rag_ci.yml`](file:///.github/workflows/rag_ci.yml) triggered on every push and pull request touching `src/`, `configs/`, `data/`, `eval/`, or `scripts/`.
+
+### CI Pipeline Workflow Steps:
+1. **Linting & Code Quality**: Fast Python linting and formatting validation via `ruff check .`.
+2. **Unit Test Suite**: Runs all unit tests covering ingestion, chunking, vector storage, pipeline execution, retrieval metrics, judge caching, and quality gates.
+3. **Index Build**: Builds and logs the v1 vector index into ChromaDB and MLflow.
+4. **Offline Evaluation**: Evaluates a reduced subset of golden queries with caching enabled to preserve API quotas.
+5. **Quality Gate Verification**: Invokes [`scripts/quality_gate.py`](file:///scripts/quality_gate.py) to assert that:
+   - All evaluation metrics meet the configured quality thresholds in [`configs/config.yaml`](file:///configs/config.yaml).
+   - No metric regresses by more than `max_regression_pct` (default: 10%) compared to the previous evaluation run registered in MLflow.
+   - Fails the build if thresholds or regression limits are violated.
+6. **Artifact Archival**: Uploads the detailed JSON report and summary as workflow artifacts (`ragops-eval-artifacts`).
+7. **PR Comment**: Automatically posts a formatted Markdown summary table with status badges and score deltas directly onto pull requests.
+
+---
+
+## 9. Running Tests & Linting
 ```bash
+# Run all unit tests
 python -m unittest discover -s tests
+
+# Run ruff code linter
+ruff check .
 ```

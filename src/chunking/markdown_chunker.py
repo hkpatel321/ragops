@@ -4,10 +4,10 @@ Splits markdown documents along structural boundaries (headers, code blocks, par
 while enforcing config-driven chunk_size and overlap constraints and preserving rich provenance metadata.
 """
 
-import hashlib
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 from src.config import cfg

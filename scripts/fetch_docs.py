@@ -10,11 +10,10 @@ Saves documents under:
 - data/raw/v2/fastapi/ and data/raw/v2/mlflow/
 """
 
-import os
 import re
-import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -145,9 +144,9 @@ def fetch_docs() -> None:
     base_dir = Path("data/raw")
 
     for version_key, repo_tags in VERSIONS.items():
-        print(f"\n==========================================")
+        print("\n==========================================")
         print(f"Fetching docs for {version_key.upper()}...")
-        print(f"==========================================")
+        print("==========================================")
 
         # 1. FastAPI
         fastapi_tag = repo_tags["fastapi"]

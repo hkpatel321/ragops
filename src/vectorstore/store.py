@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import chromadb
 from chromadb.config import Settings
 

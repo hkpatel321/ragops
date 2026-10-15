@@ -4,6 +4,7 @@ Unit tests for data ingestion loader and metadata extraction.
 
 import unittest
 from pathlib import Path
+
 from src.ingestion.loader import (
     Document,
     extract_title,
