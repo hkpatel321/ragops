@@ -58,6 +58,8 @@ mlartifacts/
 logs/
 data/monitoring/*.html
 data/monitoring/*.json
+data/artifacts/judge_cache.json
+eval/*report*.json
 
 # DVC local cache and remotes
 .dvc/cache

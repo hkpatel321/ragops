@@ -72,6 +72,8 @@ class ThresholdsConfig(BaseModel):
     answer_relevance: float = 0.85
     context_precision: float = 0.75
     context_recall: float = 0.75
+    hit_rate_at_k: float = 0.80
+    mrr_at_k: float = 0.60
     max_latency_seconds: float = 3.0
 
 

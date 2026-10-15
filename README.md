@@ -144,7 +144,47 @@ git commit -m "update golden dataset with DVC"
 
 ---
 
-## 7. Running Tests
+## 7. Continuous Evaluation & Quality Gates
+
+The `src/evaluation` package implements continuous automated evaluation of the RAG pipeline across two core dimensions:
+
+### A. Non-LLM Retrieval Metrics
+Deterministic ranking and retrieval quality computed directly without LLM overhead:
+* **Hit Rate @ k**: Fraction of queries where at least one ground-truth document chunk is retrieved in the top-$k$ candidates.
+* **Mean Reciprocal Rank (MRR @ k)**: $\frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i}$, penalizing relevant chunks retrieved lower in the candidate list.
+* **Recall @ k**: Proportion of all relevant ground-truth chunks successfully retrieved in the top-$k$.
+
+### B. LLM Generation Metrics (Gemini Judge)
+Grounded generation quality evaluated using Google Gemini (`gemini-2.5-pro`) via the LangChain Google GenAI integration (`ChatGoogleGenerativeAI`):
+* **Faithfulness**: Verifies that every claim in the generated answer is strictly grounded in and supported by the retrieved contexts.
+* **Answer Relevancy**: Assesses how directly and completely the response addresses the user's inquiry without extraneous digression.
+* **Context Precision**: Determines whether the retrieved chunks are relevant and focused on the question.
+* **Judge/Generator Separation**: Generation uses `gemini-2.5-flash` (`cfg.llm.generator`), whereas evaluation uses `gemini-2.5-pro` (`cfg.llm.judge`, temperature `0.0`), configured strictly through `configs/config.yaml`.
+
+### C. Rate-Limit Safety & Disk Caching
+* **Persistent Cache (`JudgeCache`)**: Caches LLM judge evaluations to disk (`data/artifacts/judge_cache.json`) indexed by `SHA256(model | metric | question | answer | contexts)` to avoid redundant API calls and prevent token waste.
+* **Rate-Limit Safe Batching**: Evaluates samples in configurable batches with exponential backoff on HTTP 429/ResourceExhausted errors and pacing delays to stay within API tier limits.
+
+### Commands
+
+#### Run Golden Set Evaluation & Log to MLflow
+```bash
+# Run evaluation across the golden dataset and log to MLflow
+python scripts/run_eval.py --golden-set eval/golden_v1.jsonl --data-version v1 --top-k 4
+
+# Run with mock/deterministic scoring (for fast offline CI runs)
+python scripts/run_eval.py --golden-set eval/golden_v1.jsonl --data-version v1 --limit 10 --mock-llm
+```
+
+#### Run Judge Calibration against 30 Manually Labeled Samples
+Benchmark the Gemini Judge against 30 curated, manually annotated samples covering high-quality, hallucinated, off-topic, and out-of-context edge cases:
+```bash
+python scripts/judge_calibration.py --dataset eval/calibration_samples_30.jsonl --tolerance 0.20
+```
+
+---
+
+## 8. Running Tests
 ```bash
 python -m unittest discover -s tests
 ```

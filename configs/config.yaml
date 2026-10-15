@@ -45,6 +45,8 @@ thresholds:
   answer_relevance: 0.85
   context_precision: 0.75
   context_recall: 0.75
+  hit_rate_at_k: 0.80
+  mrr_at_k: 0.60
   max_latency_seconds: 3.0
 
 # Monitoring & Drift Detection
@@ -57,7 +59,7 @@ monitoring:
 
 # MLflow Tracking
 mlflow:
-  tracking_uri: "http://localhost:5000"
+  tracking_uri: "sqlite:///mlflow.db"
   experiment_name: "RAGOps-Evaluation"
 
 # API & Server Configuration
