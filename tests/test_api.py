@@ -96,7 +96,11 @@ class TestRAGOpsAPI(unittest.TestCase):
         self.assertIn("ragops_requests_total", text)
         self.assertIn("ragops_request_latency_seconds", text)
         self.assertIn("ragops_tokens_total", text)
+        self.assertIn("ragops_token_cost_usd_total", text)
         self.assertIn("ragops_retrieval_similarity_score", text)
+        self.assertIn("ragops_retrieval_hit_rate", text)
+        self.assertIn("ragops_retrieval_mrr", text)
+        self.assertIn("ragops_active_index_info", text)
 
     def test_history_endpoint(self):
         # Insert a sample query

@@ -1,0 +1,62 @@
+groups:
+  - name: ragops_alerts
+    rules:
+      - alert: LowRollingFaithfulness
+        expr: ragops_rolling_faithfulness < 0.70
+        for: 1m
+        labels:
+          severity: critical
+          category: generation_quality
+        annotations:
+          summary: "Rolling faithfulness dropped below threshold"
+          description: "Rolling faithfulness is {{ $value }} (< 0.70). Potential LLM hallucination detected."
+
+      - alert: LowRollingRelevancy
+        expr: ragops_rolling_answer_relevancy < 0.70
+        for: 1m
+        labels:
+          severity: warning
+          category: generation_quality
+        annotations:
+          summary: "Rolling answer relevancy dropped below threshold"
+          description: "Rolling answer relevancy is {{ $value }} (< 0.70)."
+
+      - alert: EmbeddingDriftDetected
+        expr: ragops_embedding_drift_detected > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: data_drift
+        annotations:
+          summary: "Semantic embedding drift detected on {{ $labels.embedding_type }}"
+          description: "Evidently or Centroid Cosine Shift exceeded tolerance."
+
+      - alert: KnowledgeBaseIndexStale
+        expr: ragops_kb_index_stale > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: data_drift
+        annotations:
+          summary: "Knowledge base index is stale"
+          description: "Source markdown documents changed. Automated re-index required."
+
+      - alert: RetrievalHitRateDegraded
+        expr: ragops_retrieval_hit_rate < 0.80
+        for: 1m
+        labels:
+          severity: warning
+          category: retrieval_quality
+        annotations:
+          summary: "Retrieval Hit Rate degraded below 80%"
+          description: "Offline Hit Rate @ {{ $labels.k }} is {{ $value }}."
+
+      - alert: HighQueryLatency
+        expr: histogram_quantile(0.95, sum(rate(ragops_request_latency_seconds_bucket[5m])) by (le)) > 2.0
+        for: 2m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High P95 query latency"
+          description: "P95 latency is {{ $value }}s (> 2.0s)."

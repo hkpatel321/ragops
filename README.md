@@ -262,8 +262,35 @@ docker compose down
 Service URLs:
 * **FastAPI Application**: `http://localhost:8000` (Interactive docs at `/docs`)
 * **MLflow Tracking Server**: `http://localhost:5000`
-* **Prometheus Server**: `http://localhost:9090`
-* **Grafana Dashboard**: `http://localhost:3000` (user: `admin`, pass: `admin`)
+* **Prometheus Server**: `http://localhost:9090` (Scrapes `/metrics` and evaluates alert rules)
+* **Grafana Observability Portal**: `http://localhost:3000` (Auto-login as Admin; pre-provisioned datasource & dashboard)
+
+### Provisioned Grafana Dashboard (`configs/grafana/dashboards/ragops_dashboard.json`)
+Grafana is automatically provisioned with a ready-to-use operational dashboard titled **"RAGOps Continuous Evaluation & Operational Observability"** (`uid: ragops-main-dashboard`):
+
+1. **System Status & Quality Overview**:
+   * **Active Index Version**: Displays current deployed vector store version (e.g. `v1_9ac1e3a5`) and status (`PROMOTED`/`active`).
+   * **Rolling Faithfulness Stat**: Instant gauge with color coding (Green $\ge 0.8$, Yellow $0.7-0.8$, Red $< 0.7$).
+   * **Rolling Answer Relevancy Stat**: Instant gauge for grounding relevance.
+   * **Retrieval Hit Rate & MRR Stats**: Offline evaluation summary cards.
+   * **Estimated Token Cost**: Cumulative expenditure in USD based on model pricing.
+2. **Retrieval Hit Rate & MRR Over Time**:
+   * Dual-series tracking of Hit Rate@4 and MRR@4 with threshold guide lines (80% hit rate target, 60% MRR target).
+3. **Faithfulness & Answer Relevancy Trend**:
+   * Continuous rolling trend of LLM Judge evaluation across live sampled user queries with 0.70 breach boundary lines.
+4. **Query Latency (P50, P90, P99, Average)**:
+   * Multi-percentile latency distribution computed from `ragops_request_latency_seconds_bucket`.
+5. **Token Cost & Consumption Economics**:
+   * USD Cost Rate ($/hour) on left axis paired with Token Throughput (prompt vs. completion tokens/sec) on right axis.
+6. **Embedding Drift Score & Knowledge-Base Staleness**:
+   * Query and doc chunk embedding drift metrics, centroid cosine distance shift, and knowledge-base staleness indicator flags.
+7. **Traffic Throughput by Index Version**:
+   * Request throughput (req/s) broken down by active ChromaDB version identifier.
+8. **Dynamic Alert Annotations**:
+   * Overlay markers automatically rendered on graphs whenever:
+     * Prometheus triggers `ALERTS{alertname=~".+", alertstate="firing"}`
+     * Rolling faithfulness breaches `0.70`
+     * Knowledge-base staleness or semantic embedding drift occurs
 
 ---
 
