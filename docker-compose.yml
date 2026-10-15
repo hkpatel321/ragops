@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  ragops-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ragops-api
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - CHROMA_PERSIST_DIRECTORY=/app/data/chroma_db
+    volumes:
+      - ./data:/app/data
+      - ./configs:/app/configs
+    depends_on:
+      - mlflow
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: ragops-mlflow
+    ports:
+      - "5000:5000"
+    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0 --port 5000
+    volumes:
+      - mlflow-data:/mlflow
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ragops-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ragops-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  mlflow-data:

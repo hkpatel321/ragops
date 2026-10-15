@@ -203,7 +203,71 @@ The repository includes an end-to-end continuous integration workflow in [`.gith
 
 ---
 
-## 9. Running Tests & Linting
+## 9. FastAPI Service & Docker Deployment
+
+The `src/api` module exposes a high-performance REST service for interacting with the versioned RAG assistant, streaming telemetry to persistent storage, and serving metrics in standard Prometheus exposition format.
+
+### Endpoints
+* **`POST /query`**: Accepts a question and version tag, performs vector similarity retrieval, builds a grounded prompt, calls Gemini (with "I don't know" safeguard), records telemetry metrics, and logs the query.
+* **`GET /health`**: Health check reporting the connectivity status of ChromaDB and SQLite telemetry storage.
+* **`GET /metrics`**: Serves Prometheus metrics for scraper consumption:
+  * `ragops_requests_total`: Total count of requests by endpoint, HTTP status, and version ID.
+  * `ragops_request_latency_seconds`: Latency distribution histogram (0.05s to 10.0s buckets).
+  * `ragops_tokens_total`: Total prompt, completion, and aggregate token counts.
+  * `ragops_retrieval_similarity_score`: Cosine similarity score distribution across retrieved chunks.
+* **`GET /history`**: Returns recent queries with latency, token usage, and provenance from the SQLite store.
+
+### Dual-Persistence Storage
+Every query payload is saved to:
+1. **SQLite (`data/logs/query_log.db`)**: Indexed relational database for fast querying, filtering, and latency analytics.
+2. **Streaming JSONL (`data/logs/query_log.jsonl`)**: Append-only log stream for drift monitoring and offline evaluation pipelines.
+
+### Running Locally
+```bash
+# Run server using Uvicorn
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Or via Python module
+python src/api/main.py
+```
+
+### Querying the API
+```bash
+# Ask a question to the assistant
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "How do path parameters work in FastAPI?", "data_version": "v1", "top_k": 4}'
+
+# Check service health
+curl http://localhost:8000/health
+
+# Scrape Prometheus metrics
+curl http://localhost:8000/metrics
+```
+
+### Running with Docker & Docker Compose
+The application stack includes the FastAPI assistant, MLflow tracking server, Prometheus, and Grafana:
+
+```bash
+# Build and run the entire stack
+docker compose up --build -d
+
+# Check service status
+docker compose ps
+
+# Stop the stack
+docker compose down
+```
+
+Service URLs:
+* **FastAPI Application**: `http://localhost:8000` (Interactive docs at `/docs`)
+* **MLflow Tracking Server**: `http://localhost:5000`
+* **Prometheus Server**: `http://localhost:9090`
+* **Grafana Dashboard**: `http://localhost:3000` (user: `admin`, pass: `admin`)
+
+---
+
+## 10. Running Tests & Linting
 ```bash
 # Run all unit tests
 python -m unittest discover -s tests
