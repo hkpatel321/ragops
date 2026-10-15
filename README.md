@@ -267,11 +267,67 @@ Service URLs:
 
 ---
 
-## 10. Running Tests & Linting
+## 10. Continuous Monitoring & Drift Detection (`src/monitoring`, `scripts/simulate_drift.py`)
+
+Production RAG systems suffer from three primary forms of drift: knowledge staleness, embedding distribution shift, and generation degradation. RAGOps implements automated monitoring for all three:
+
+### (a) Async Production Query Sampling Evaluator (`src/monitoring/sampling_evaluator.py`)
+* Asynchronously polls logged production traffic in `QueryStore` (SQLite/JSONL).
+* Configurable sampling rate (default 10%) selects unseen queries for LLM scoring without adding user-facing latency.
+* Scores queries with the **Gemini Judge** on:
+  * **Faithfulness**: Is the answer factually grounded in the retrieved contexts?
+  * **Answer Relevancy**: Does the answer directly address the question?
+* Updates rolling Prometheus gauges with configurable window sizes:
+  * `ragops_rolling_faithfulness`: Rolling average faithfulness.
+  * `ragops_rolling_answer_relevancy`: Rolling average answer relevancy.
+  * `ragops_sampled_queries_total`: Total count of sampled queries evaluated.
+
+### (b) Embedding Drift Detection with Evidently (`src/monitoring/embedding_drift.py`)
+* Compares high-dimensional embedding spaces between a reference window and current production windows for:
+  * **Document Chunks**: Baseline index embeddings vs newly added/modified documents.
+  * **Query Traffic**: Baseline golden queries vs incoming user traffic.
+* Computes:
+  * Top Principal Component Analysis (PCA) projections and Centroid Cosine Distance distribution shift.
+  * Two-sample Kolmogorov-Smirnov test and Evidently Data Drift reports.
+* Generates interactive reports in `data/monitoring/`:
+  * `embedding_drift_doc.html` & `embedding_drift_doc_metrics.json`
+  * `embedding_drift_query.html` & `embedding_drift_query_metrics.json`
+* Exposes Prometheus gauges:
+  * `ragops_embedding_drift_score`: Share of drifted dimensions / distance shift.
+  * `ragops_embedding_drift_detected`: Boolean flag (1.0 = drift alert, 0.0 = normal).
+  * `ragops_embedding_distance_shift`: Mean cosine distance shift.
+
+### (c) Knowledge-Base Drift & Index Staleness (`src/monitoring/kb_drift.py`)
+* Computes cryptographic SHA-256 digests across raw markdown documentation trees.
+* Generates and persists versioned manifests (`data/monitoring/manifests/manifest_{version}.json`).
+* Detects:
+  * **New files** added to the documentation.
+  * **Modified files** whose contents or APIs changed.
+  * **Removed files** deleted from documentation.
+* Marks the ChromaDB vector index as **STALE** (`is_stale=True`) when drift is detected.
+* Exposes Prometheus gauges:
+  * `ragops_kb_index_stale`: 1.0 if index is stale/drifted, 0.0 if fresh.
+  * `ragops_kb_files_changed_total`: Count of added, modified, or removed files.
+
+### Simulating & Demoing Drift (`scripts/simulate_drift.py`)
+Run the end-to-end drift simulator to observe the system detect documentation updates, embedding shifts, and live query scoring:
+
 ```bash
-# Run all unit tests
+# Run drift simulation across all 3 monitoring layers
+python scripts/simulate_drift.py --num-queries 5 --mock-judge
+
+# Or run with live Gemini Judge API (requires GEMINI_API_KEY)
+python scripts/simulate_drift.py --num-queries 5
+```
+
+---
+
+## 11. Running Tests & Linting
+```bash
+# Run all 36 unit tests across ingestion, chunking, embedding, vectorstore, rag, evaluation, api, and monitoring
 python -m unittest discover -s tests
 
 # Run ruff code linter
 ruff check .
 ```
+
