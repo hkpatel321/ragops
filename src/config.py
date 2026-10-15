@@ -102,6 +102,26 @@ class APIConfig(BaseModel):
     reload: bool = False
 
 
+class TelegramConfig(BaseModel):
+    bot_token: Optional[str] = Field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN"))
+    chat_id: Optional[str] = Field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID"))
+    enabled: bool = True
+    parse_mode: str = "Markdown"
+
+
+class GitHubWorkflowConfig(BaseModel):
+    workflow_id: str = "reindex_and_eval.yml"
+    ref: str = "main"
+    github_token: Optional[str] = Field(default_factory=lambda: os.getenv("GITHUB_TOKEN"))
+    repository: Optional[str] = Field(default_factory=lambda: os.getenv("GITHUB_REPOSITORY"))
+
+
+class AlertingConfig(BaseModel):
+    telegram: TelegramConfig = Field(default_factory=TelegramConfig)
+    github_workflow: GitHubWorkflowConfig = Field(default_factory=GitHubWorkflowConfig)
+    failed_queries_path: str = "eval/failed_queries.jsonl"
+
+
 class AppConfig(BaseModel):
     project: ProjectConfig = Field(default_factory=ProjectConfig)
     chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
@@ -112,6 +132,7 @@ class AppConfig(BaseModel):
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
     mlflow: MLflowConfig = Field(default_factory=MLflowConfig)
     api: APIConfig = Field(default_factory=APIConfig)
+    alerting: AlertingConfig = Field(default_factory=AlertingConfig)
 
 
 def load_config(config_path: str = "configs/config.yaml") -> AppConfig:

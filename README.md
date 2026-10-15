@@ -322,12 +322,65 @@ python scripts/simulate_drift.py --num-queries 5
 
 ---
 
-## 11. Running Tests & Linting
+## 11. Telegram Alerting, Automated Incident Response & Promotion Controller
+
+RAGOps provides closed-loop incident detection and automated mitigation connecting live monitoring, incident messaging, and CI/CD pipelines.
+
+### (a) Telegram Bot Alerting (`src/monitoring/alerting.py`)
+Alert notifications are pushed directly to engineers via a Telegram Bot (credentials loaded from `.env`: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) under three operational triggers:
+1. **Rolling Faithfulness Breach**: Triggered when the production query sampling evaluator detects that rolling faithfulness drops below configured threshold (default `0.70`).
+2. **Embedding Drift Detected**: Triggered when Evidently or PCA/Centroid Cosine Drift indicates distribution shift in query or document embedding spaces.
+3. **Knowledge Base Staleness**: Triggered when docs are modified, added, or deleted, marking the current vector index stale.
+4. **Promotion / Rollback Events**: Notifies whenever an index version is promoted to Production or rolled back after quality gate evaluation.
+
+```env
+# .env
+TELEGRAM_BOT_TOKEN="123456789:ABCDefGhIJKlmNoPQRstuVWXyz"
+TELEGRAM_CHAT_ID="-1001234567890"
+```
+
+### (b) Failed Queries Triage Log (`eval/failed_queries.jsonl`)
+Whenever a sampled production query exhibits low faithfulness (`< 0.70`) or low relevancy (`< 0.70`), it is automatically recorded to `eval/failed_queries.jsonl` with full diagnostic metadata:
+* `id`: Unique query transaction ID
+* `timestamp`: Evaluation timestamp
+* `query`: User question
+* `answer`: Generated response
+* `contexts`: Retrieved context chunks
+* `faithfulness`: Judge faithfulness score and explanation
+* `answer_relevancy`: Judge relevancy score and explanation
+* `failure_reason`: `low_faithfulness` (hallucination) or `low_relevancy`
+* `index_version` & `model_name`: Model and index coordinates
+
+**Continuous Golden Set Enrichment Workflow**:
+Engineers review `eval/failed_queries.jsonl`, annotate the ground-truth answers for the failing queries, and merge them into `eval/golden_v1.jsonl` to ensure recurring edge cases are tested in future CI/CD quality gates.
+
+### (c) Automated Reindexing & Promotion Workflow (`.github/workflows/reindex_and_eval.yml`)
+When an alert fires or an operator initiates a re-index via GitHub Actions `workflow_dispatch`:
+1. **Rebuilds Candidate Index**: Builds the ChromaDB index on the latest data version (`v2`).
+2. **Executes Offline Evaluation**: Evaluates retrieval metrics (Hit Rate, MRR, Recall) and generation metrics (Faithfulness, Relevancy) against the golden set.
+3. **Quality Gate Verification**: Evaluates performance against configured minimum thresholds and regression limits.
+4. **Promotion / Rollback Controller (`scripts/promote_or_rollback.py`)**:
+   * **If Gate PASSED**: Promotes run to `stage="Production"` in MLflow, tags `deployment_status="PROMOTED"`, updates `data/active_index_version.json`, and sends a Telegram celebration notification.
+   * **If Gate FAILED**: Marks run as `stage="Archived"`, tags `deployment_status="ROLLED_BACK"`, preserves the stable baseline pointer (`v1`), sends a Telegram incident alert, and fails the build with exit code 1.
+5. **Artifact Publishing**: Publishes `eval_report_latest.json`, `quality_gate_summary.md`, and `failed_queries.jsonl` as workflow artifacts.
+
 ```bash
-# Run all 36 unit tests across ingestion, chunking, embedding, vectorstore, rag, evaluation, api, and monitoring
+# Manually test promotion/rollback controller locally
+python scripts/promote_or_rollback.py \
+  --eval-report eval/eval_report_latest.json \
+  --data-version v2 \
+  --baseline-version v1
+```
+
+---
+
+## 12. Running Tests & Linting
+```bash
+# Run all 48 unit tests across ingestion, chunking, embedding, vectorstore, rag, evaluation, api, monitoring, and alerting
 python -m unittest discover -s tests
 
 # Run ruff code linter
 ruff check .
 ```
+
 

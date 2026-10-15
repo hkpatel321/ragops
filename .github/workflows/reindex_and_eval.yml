@@ -1,0 +1,116 @@
+name: Automated Re-Index, Evaluate & MLflow Promotion/Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      data_version:
+        description: "Candidate data version to index (e.g. v2)"
+        required: true
+        default: "v2"
+      baseline_version:
+        description: "Stable baseline data version to fallback to on failure"
+        required: true
+        default: "v1"
+      trigger_reason:
+        description: "Triggering event (e.g. kb_drift, embedding_drift, manual)"
+        required: false
+        default: "drift_alert"
+      force_promote:
+        description: "Force promotion regardless of quality gate (true/false)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  automated-reindex-and-evaluate:
+    name: Re-Index (${{ github.event.inputs.data_version || 'v2' }}), Evaluate & Promote/Rollback
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Re-build Vector Index (${{ github.event.inputs.data_version || 'v2' }})
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          echo "Building index for data version: ${{ github.event.inputs.data_version || 'v2' }} (Trigger: ${{ github.event.inputs.trigger_reason || 'drift_alert' }})"
+          python scripts/build_index.py --data-version ${{ github.event.inputs.data_version || 'v2' }}
+
+      - name: Re-run Offline Evaluation on Candidate Index
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
+        run: |
+          python scripts/run_eval.py \
+            --golden-set eval/golden_v1.jsonl \
+            --data-version ${{ github.event.inputs.data_version || 'v2' }} \
+            --limit 10 \
+            --mock-llm \
+            --output-report eval/eval_report_latest.json
+
+      - name: Verify Quality Gate & Regressions
+        id: quality_gate
+        continue-on-error: true
+        env:
+          MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
+        run: |
+          python scripts/quality_gate.py \
+            --report eval/eval_report_latest.json \
+            --max-regression-pct 10.0 \
+            --markdown-output eval/quality_gate_summary.md
+
+      - name: Promote New Version or Roll Back in MLflow
+        id: promote_rollback
+        env:
+          MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ github.event.inputs.force_promote }}" = "true" ]; then
+            FORCE_FLAG="--force-promote"
+          fi
+          python scripts/promote_or_rollback.py \
+            --eval-report eval/eval_report_latest.json \
+            --data-version ${{ github.event.inputs.data_version || 'v2' }} \
+            --baseline-version ${{ github.event.inputs.baseline_version || 'v1' }} \
+            $FORCE_FLAG
+
+      - name: Publish Summary to GitHub Actions Step Summary
+        if: always()
+        run: |
+          if [ -f eval/quality_gate_summary.md ]; then
+            cat eval/quality_gate_summary.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Re-indexing and Evaluation Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reindex-evaluation-artifacts
+          path: |
+            eval/eval_report_latest.json
+            eval/quality_gate_summary.md
+            data/active_index_version.json
+            eval/failed_queries.jsonl

@@ -68,3 +68,14 @@ api:
   host: "0.0.0.0"
   port: 8000
   reload: false
+
+# Alerting & Incident Response
+alerting:
+  telegram:
+    enabled: true
+    parse_mode: "Markdown"
+  failed_queries_path: "eval/failed_queries.jsonl"
+  github_workflow:
+    workflow_id: "reindex_and_eval.yml"
+    ref: "main"
+

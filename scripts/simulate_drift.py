@@ -27,13 +27,19 @@ from src.chunking import MarkdownChunker
 from src.embedding import Embedder
 from src.ingestion import load_documents_from_directory
 from src.logger import logger
+from src.monitoring.alerting import AlertManager
 from src.monitoring.embedding_drift import EmbeddingDriftDetector
 from src.monitoring.kb_drift import KBDriftDetector
 from src.monitoring.sampling_evaluator import SamplingEvaluator
 from src.rag.pipeline import RAGPipeline
 
 
-def simulate_kb_drift(v1_dir: Path, v2_dir: Path, output_dir: Path):
+def simulate_kb_drift(
+    v1_dir: Path,
+    v2_dir: Path,
+    output_dir: Path,
+    trigger_workflow: bool = False,
+):
     """
     Simulate Knowledge Base drift by switching baseline from v1 to v2.
     """
@@ -77,6 +83,10 @@ def simulate_kb_drift(v1_dir: Path, v2_dir: Path, output_dir: Path):
         print("\nSample New Files:")
         for f in drift_report.new_files[:5]:
             print(f"  * [NEW] {f}")
+
+    # 3. Process alerts and automated reindex triggers
+    alert_mgr = AlertManager()
+    alert_mgr.process_kb_drift(drift_report, auto_reindex=trigger_workflow)
 
     print("=" * 50 + "\n")
     return drift_report
@@ -170,8 +180,11 @@ def simulate_embedding_drift(v1_dir: Path, v2_dir: Path, output_dir: Path):
     print(f"  * Cosine Dist Shift   : {query_result.mean_cosine_shift:.4f}")
     print(f"  * Report HTML         : {query_result.report_html_path}")
     print(f"  * Metrics JSON        : {query_result.metrics_json_path}")
-    print("=" * 50 + "\n")
+    # Process alerts
+    alert_mgr = AlertManager()
+    alert_mgr.process_embedding_drift(query_result, auto_reindex=False)
 
+    print("=" * 50 + "\n")
     return doc_result, query_result
 
 
@@ -193,7 +206,8 @@ def simulate_query_replay_and_sampling(
     if golden_path.exists():
         with open(golden_path, "r", encoding="utf-8") as f:
             for line in f:
-                if line.strip():
+                line = line.strip()
+                if line:
                     item = json.loads(line)
                     queries_to_replay.append(item.get("question", ""))
                     if len(queries_to_replay) >= num_queries:
@@ -255,13 +269,20 @@ def simulate_query_replay_and_sampling(
     if mock_judge:
         from unittest.mock import MagicMock
         judge = MagicMock()
-        judge.evaluate_sample_with_cache.return_value = (0.92, "High factual grounding verified.")
+        # Alternate with a low score to verify failed query logging and alert dispatching
+        judge.evaluate_sample_with_cache.side_effect = [
+            (0.60, "Hallucination: Answer contains unsupported parameters not in retrieved context."),
+            (0.70, "Answer only partially answers the prompt."),
+            (0.92, "High factual grounding verified."),
+            (0.95, "Direct answer to prompt."),
+        ]
 
     evaluator = SamplingEvaluator(
         store=store,
         judge=judge,
         sample_rate=0.20,  # 20% for demo so at least 1-2 queries are scored immediately
         window_size=10,
+        failed_queries_path="eval/failed_queries.jsonl",
     )
 
     eval_result = evaluator.process_new_queries()
@@ -273,6 +294,8 @@ def simulate_query_replay_and_sampling(
     print(f"Sampled & LLM-Scored    : {eval_result['sampled_count']}")
     print(f"Rolling Faithfulness    : {eval_result['rolling_faithfulness']:.4f}")
     print(f"Rolling Answer Relevancy: {eval_result['rolling_relevancy']:.4f}")
+    print(f"Low-Score Queries Logged: {eval_result.get('failed_queries_logged', 0)} -> eval/failed_queries.jsonl")
+    print(f"Telegram Alert Fired    : {eval_result.get('alert_triggered', False)}")
     print("Prometheus Gauges Updated:")
     print(f"  * ragops_rolling_faithfulness    -> {eval_result['rolling_faithfulness']}")
     print(f"  * ragops_rolling_answer_relevancy-> {eval_result['rolling_relevancy']}")
@@ -289,6 +312,7 @@ def main():
     parser.add_argument("--num-queries", type=int, default=10, help="Number of queries to replay")
     parser.add_argument("--output-dir", type=str, default="data/monitoring", help="Output directory for reports")
     parser.add_argument("--mock-judge", action="store_true", help="Use mock judge to preserve API quota")
+    parser.add_argument("--trigger-workflow", action="store_true", help="Dispatch GitHub Actions reindex workflow on drift")
 
     args = parser.parse_args()
 
@@ -303,7 +327,7 @@ def main():
     print("#" * 60 + "\n")
 
     # 1. Knowledge Base Drift
-    simulate_kb_drift(v1_dir, v2_dir, output_dir)
+    simulate_kb_drift(v1_dir, v2_dir, output_dir, trigger_workflow=args.trigger_workflow)
 
     # 2. Embedding Drift
     simulate_embedding_drift(v1_dir, v2_dir, output_dir)
@@ -324,3 +348,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

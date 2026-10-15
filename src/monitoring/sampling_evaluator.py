@@ -3,23 +3,30 @@ Async Background Sampling Evaluator for RAGOps.
 Samples 10% of production queries and evaluates them using the Gemini Judge:
 - Faithfulness
 - Answer Relevancy
+Logs low-scoring production queries to eval/failed_queries.jsonl for review and addition to golden set.
 Exposes rolling scores as Prometheus Gauges:
 - ragops_rolling_faithfulness
 - ragops_rolling_answer_relevancy
 - ragops_sampled_queries_total
+Triggers Telegram alert when rolling faithfulness breaches threshold.
 """
 
 import asyncio
+import json
 import random
+import time
 from collections import deque
+from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional, Set
 
 import numpy as np
 from prometheus_client import Counter, Gauge
 
 from src.api.storage import QueryStore
+from src.config import cfg
 from src.evaluation.judge_llm import GeminiJudge
 from src.logger import logger
+from src.monitoring.alerting import TelegramAlerter
 
 # Prometheus Metrics for Production Sampling Evaluation
 ROLLING_FAITHFULNESS = Gauge(
@@ -44,20 +51,36 @@ SAMPLED_QUERIES_COUNT = Counter(
 class SamplingEvaluator:
     """
     Monitors logged production queries and asynchronously samples a configurable percentage (default 10%)
-    to score with the Judge LLM and update rolling Prometheus metrics.
+    to score with the Judge LLM, logs failed queries, updates rolling Prometheus metrics, and dispatches alerts.
     """
 
     def __init__(
         self,
         store: Optional[QueryStore] = None,
         judge: Optional[GeminiJudge] = None,
+        alerter: Optional[TelegramAlerter] = None,
         sample_rate: float = 0.10,
         window_size: int = 20,
+        failed_queries_path: Optional[str] = None,
+        faithfulness_threshold: Optional[float] = None,
+        relevancy_threshold: Optional[float] = None,
     ) -> None:
         self.store = store or QueryStore()
         self.judge = judge or GeminiJudge()
+        self.alerter = alerter or TelegramAlerter()
         self.sample_rate = sample_rate
         self.window_size = window_size
+
+        self.faithfulness_threshold = (
+            faithfulness_threshold if faithfulness_threshold is not None else cfg.thresholds.faithfulness
+        )
+        self.relevancy_threshold = (
+            relevancy_threshold if relevancy_threshold is not None else cfg.thresholds.answer_relevance
+        )
+        self.failed_queries_path = Path(
+            failed_queries_path or getattr(cfg.alerting, "failed_queries_path", "eval/failed_queries.jsonl")
+        )
+        self.failed_queries_path.parent.mkdir(parents=True, exist_ok=True)
 
         self.evaluated_ids: Set[str] = set()
         self.faithfulness_window: Deque[float] = deque(maxlen=window_size)
@@ -66,9 +89,53 @@ class SamplingEvaluator:
         self._task: Optional[asyncio.Task] = None
         self._running: bool = False
 
+    def log_failed_query(
+        self,
+        query_id: str,
+        query: str,
+        answer: str,
+        contexts: List[str],
+        faithfulness: float,
+        faithfulness_reason: str,
+        relevancy: float,
+        relevancy_reason: str,
+        index_version: str = "unknown",
+        model_name: Optional[str] = None,
+    ) -> None:
+        """
+        Append low-scoring production query to eval/failed_queries.jsonl for review and addition to golden set.
+        """
+        record = {
+            "id": query_id,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "query": query,
+            "answer": answer,
+            "contexts": contexts,
+            "faithfulness": faithfulness,
+            "faithfulness_reason": faithfulness_reason,
+            "answer_relevancy": relevancy,
+            "answer_relevancy_reason": relevancy_reason,
+            "failure_reason": (
+                "low_faithfulness" if faithfulness < self.faithfulness_threshold else "low_relevancy"
+            ),
+            "index_version": index_version,
+            "model_name": model_name or "gemini-2.5-flash",
+        }
+
+        try:
+            with open(self.failed_queries_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            logger.warning(
+                f"Logged low-scoring query [{query_id}] to '{self.failed_queries_path}' "
+                f"(Faithfulness={faithfulness:.2f}, Relevancy={relevancy:.2f})."
+            )
+        except Exception as e:
+            logger.error(f"Failed to append to failed queries log: {e}")
+
     def process_new_queries(self, max_fetch: int = 100) -> Dict[str, Any]:
         """
-        Poll the QueryStore for newly logged queries, sample 10%, and score them.
+        Poll the QueryStore for newly logged queries, sample 10%, score them, log failures,
+        and trigger alerts if rolling faithfulness breaches threshold.
         """
         all_recent = self.store.get_recent_queries(limit=max_fetch)
         new_queries = [q for q in all_recent if q["id"] not in self.evaluated_ids]
@@ -79,6 +146,7 @@ class SamplingEvaluator:
                 "sampled_count": 0,
                 "rolling_faithfulness": self.get_rolling_faithfulness(),
                 "rolling_relevancy": self.get_rolling_relevancy(),
+                "failed_queries_logged": 0,
             }
 
         # Calculate sample size (at least 1 if new queries arrived)
@@ -93,6 +161,7 @@ class SamplingEvaluator:
         )
 
         scored_records: List[Dict[str, Any]] = []
+        failed_count = 0
 
         for q in sampled:
             q_id = q["id"]
@@ -121,6 +190,25 @@ class SamplingEvaluator:
 
                 SAMPLED_QUERIES_COUNT.labels(status="success").inc()
 
+                # Check if low-scoring
+                if (
+                    faith_score < self.faithfulness_threshold
+                    or rel_score < self.relevancy_threshold
+                ):
+                    self.log_failed_query(
+                        query_id=q_id,
+                        query=question,
+                        answer=answer,
+                        contexts=contexts,
+                        faithfulness=faith_score,
+                        faithfulness_reason=faith_reason,
+                        relevancy=rel_score,
+                        relevancy_reason=rel_reason,
+                        index_version=q.get("index_version", "unknown"),
+                        model_name=q.get("model_name"),
+                    )
+                    failed_count += 1
+
                 scored_records.append({
                     "id": q_id,
                     "faithfulness": faith_score,
@@ -148,12 +236,27 @@ class SamplingEvaluator:
             f"Faithfulness={rolling_f:.4f} | Answer Relevancy={rolling_r:.4f}"
         )
 
+        # Trigger Telegram Alert if rolling faithfulness breaches threshold
+        alert_triggered = False
+        if len(self.faithfulness_window) >= min(3, self.window_size) and rolling_f < self.faithfulness_threshold:
+            logger.warning(
+                f"ALERT CONDITION MET: Rolling faithfulness ({rolling_f:.4f}) dropped below "
+                f"threshold ({self.faithfulness_threshold:.4f})!"
+            )
+            alert_triggered = self.alerter.alert_low_faithfulness(
+                rolling_faithfulness=rolling_f,
+                threshold=self.faithfulness_threshold,
+                window_size=self.window_size,
+            )
+
         return {
             "new_queries_found": len(new_queries),
             "sampled_count": len(sampled),
             "rolling_faithfulness": rolling_f,
             "rolling_relevancy": rolling_r,
             "scored_records": scored_records,
+            "failed_queries_logged": failed_count,
+            "alert_triggered": alert_triggered,
         }
 
     def get_rolling_faithfulness(self) -> float:
