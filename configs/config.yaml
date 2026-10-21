@@ -34,7 +34,7 @@ llm:
     max_output_tokens: 1024
     top_p: 0.95
   judge:
-    model_name: "gemini-2.5-pro"
+    model_name: "gemini-2.5-flash"
     temperature: 0.0
     max_output_tokens: 2048
     top_p: 0.90
