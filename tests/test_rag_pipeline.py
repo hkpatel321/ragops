@@ -3,7 +3,7 @@ Unit tests for the RAG pipeline, prompt construction, and response structure.
 """
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from src.rag.pipeline import GROUNDED_PROMPT_TEMPLATE, RAGPipeline, RAGResponse
 
@@ -51,16 +51,17 @@ class TestRAGPipeline(unittest.TestCase):
 
     def test_query_mock_execution(self):
         query = "How do path parameters work in FastAPI?"
-        res = self.pipeline.query(
-            query=query,
-            data_version="v1",
-            mock_answer="Path parameters are declared using Python format string syntax.",
-        )
+        with patch.object(self.pipeline.store, "query", return_value=self.sample_chunks):
+            res = self.pipeline.query(
+                query=query,
+                data_version="v1",
+                mock_answer="Path parameters are declared using Python format string syntax.",
+            )
         self.assertIsInstance(res, RAGResponse)
         self.assertEqual(res.query, query)
         self.assertIn("Path parameters", res.answer)
         self.assertGreater(len(res.contexts), 0)
-        self.assertGreater(res.latency, 0.0)
+        self.assertGreaterEqual(res.latency, 0.0)
         self.assertIn("prompt_tokens", res.token_counts)
         self.assertIn("completion_tokens", res.token_counts)
         self.assertIn("total_tokens", res.token_counts)

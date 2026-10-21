@@ -32,8 +32,8 @@ class TelegramAlerter:
         chat_id: Optional[str] = None,
         parse_mode: str = "Markdown",
     ) -> None:
-        self.bot_token = bot_token or cfg.alerting.telegram.bot_token or os.getenv("TELEGRAM_BOT_TOKEN")
-        self.chat_id = chat_id or cfg.alerting.telegram.chat_id or os.getenv("TELEGRAM_CHAT_ID")
+        self.bot_token = bot_token if bot_token is not None else (cfg.alerting.telegram.bot_token or os.getenv("TELEGRAM_BOT_TOKEN"))
+        self.chat_id = chat_id if chat_id is not None else (cfg.alerting.telegram.chat_id or os.getenv("TELEGRAM_CHAT_ID"))
         self.parse_mode = parse_mode or cfg.alerting.telegram.parse_mode
 
     @property
