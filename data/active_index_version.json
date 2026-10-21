@@ -1,0 +1,17 @@
+{
+  "status": "PROMOTED",
+  "stage": "Production",
+  "active_data_version": "v2",
+  "version_id": "v2_promoted",
+  "promoted_at": "2026-10-21 17:35:08 UTC",
+  "metrics": {
+    "hit_rate@4": 0.2,
+    "mrr@4": 0.075,
+    "recall@4": 0.2,
+    "faithfulness": 0.764,
+    "answer_relevancy": 0.805,
+    "context_precision": 0.818,
+    "total_evaluated": 10,
+    "judge_cache_hits": 120
+  }
+}

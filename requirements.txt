@@ -1,17 +1,33 @@
-# Missing dependencies for genai_env to support RAGOps
-# Note: google-genai, sentence-transformers, chromadb, fastapi, uvicorn, pydantic, pyyaml, and torch
-# are already installed in the existing genai_env environment.
+# Core ML, Deep Learning & Vector Search
+torch>=2.0.0
+sentence-transformers>=2.2.0
+chromadb>=0.4.22
+numpy>=1.24.0
 
+# LLM Providers & Evaluation Frameworks
+google-genai>=0.1.0
+google-generativeai>=0.8.0
+langchain-google-genai>=2.0.0
+ragas>=0.2.0
+datasets>=2.19.0
+
+# API, Networking & Serving
+fastapi>=0.100.0
+uvicorn>=0.22.0
+pydantic>=2.0.0
+pyyaml>=6.0
+requests>=2.31.0
+httpx>=0.28.0
+
+# MLOps, Experiment Tracking & Observability
 dvc>=3.50.0
 mlflow-skinny>=3.17.0
 alembic>=1.13.0
-ragas>=0.2.0
-langchain-google-genai>=2.0.0
-datasets>=2.19.0
 evidently>=0.4.30
 prometheus-client>=0.20.0
+
+# Utilities, Testing & Linting
+tabulate>=0.9.0
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
-httpx>=0.28.0
-tabulate>=0.9.0
-ruff>=0.17.0
+ruff>=0.1.0

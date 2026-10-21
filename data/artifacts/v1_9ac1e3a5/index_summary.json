@@ -9,6 +9,6 @@
   "overlap": 64,
   "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
   "distance_metric": "cosine",
-  "build_duration_sec": 45.7,
-  "timestamp": "2026-10-14 22:11:51"
+  "build_duration_sec": 52.77,
+  "timestamp": "2026-10-21 23:01:55"
 }

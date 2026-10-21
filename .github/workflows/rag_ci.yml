@@ -50,6 +50,11 @@ jobs:
         run: |
           ruff check .
 
+      - name: Fetch Documentation
+        run: |
+          python scripts/fetch_docs.py --version v1
+          python scripts/fetch_docs.py --version v2
+
       - name: Run Unit Tests
         env:
           MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
