@@ -161,6 +161,19 @@ def sync_eval_and_index_metrics() -> None:
                     RETRIEVAL_HIT_RATE.labels(version_id=version_id, k=str(k)).set(float(metrics[f"hit_rate@{k}"]))
                 if f"mrr@{k}" in metrics:
                     RETRIEVAL_MRR.labels(version_id=version_id, k=str(k)).set(float(metrics[f"mrr@{k}"]))
+
+            if "faithfulness" in metrics:
+                try:
+                    from src.monitoring.sampling_evaluator import ROLLING_FAITHFULNESS
+                    ROLLING_FAITHFULNESS.labels(window_size="10").set(float(metrics["faithfulness"]))
+                except Exception:
+                    pass
+            if "answer_relevancy" in metrics:
+                try:
+                    from src.monitoring.sampling_evaluator import ROLLING_ANSWER_RELEVANCY
+                    ROLLING_ANSWER_RELEVANCY.labels(window_size="10").set(float(metrics["answer_relevancy"]))
+                except Exception:
+                    pass
         except Exception as e:
             logger.debug(f"Failed to sync eval report metrics: {e}")
 

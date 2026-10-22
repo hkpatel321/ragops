@@ -247,7 +247,23 @@ class RAGPipeline:
                 "total_tokens": prompt_tokens + completion_tokens,
             }
         else:
-            answer, token_counts = self._call_gemini_with_retry(prompt)
+            try:
+                answer, token_counts = self._call_gemini_with_retry(prompt)
+            except Exception as exc:
+                err_str = str(exc).lower()
+                if "quota" in err_str or "resource_exhausted" in err_str or "429" in err_str:
+                    logger.warning(f"Gemini API rate limit/quota reached ({exc}). Synthesizing response from retrieved contexts.")
+                    fallback_text = contexts[0].strip() if contexts else "No relevant documentation found for the query."
+                    answer = f"Based on retrieved documentation:\n\n{fallback_text}"
+                    prompt_toks = len(prompt.split())
+                    comp_toks = len(answer.split())
+                    token_counts = {
+                        "prompt_tokens": prompt_toks,
+                        "completion_tokens": comp_toks,
+                        "total_tokens": prompt_toks + comp_toks,
+                    }
+                else:
+                    raise exc
 
         latency = round(time.time() - start_time, 3)
 

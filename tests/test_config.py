@@ -16,8 +16,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.chunking.overlap, 64)
         self.assertEqual(config.embedding.model_name, "sentence-transformers/all-MiniLM-L6-v2")
         self.assertEqual(config.vectorstore.top_k, 4)
-        self.assertEqual(config.llm.generator.model_name, "gemini-2.5-flash")
-        self.assertEqual(config.llm.judge.model_name, "gemini-2.5-flash")
+        self.assertEqual(config.llm.generator.model_name, "gemini-flash-latest")
+        self.assertEqual(config.llm.judge.model_name, "gemini-flash-latest")
         self.assertGreaterEqual(config.thresholds.faithfulness, 0.80)
         self.assertGreaterEqual(config.thresholds.answer_relevance, 0.85)
 

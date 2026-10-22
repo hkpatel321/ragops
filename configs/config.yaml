@@ -29,12 +29,12 @@ vectorstore:
 # LLM Configuration (Google Gemini)
 llm:
   generator:
-    model_name: "gemini-2.5-flash"
+    model_name: "gemini-flash-latest"
     temperature: 0.2
     max_output_tokens: 1024
     top_p: 0.95
   judge:
-    model_name: "gemini-2.5-flash"
+    model_name: "gemini-flash-latest"
     temperature: 0.0
     max_output_tokens: 2048
     top_p: 0.90

@@ -9,4 +9,4 @@ scrape_configs:
   - job_name: "ragops-api"
     metrics_path: "/metrics"
     static_configs:
-      - targets: ["ragops-api:8000"]
+      - targets: ["ragops-api:8000", "host.docker.internal:8000"]
