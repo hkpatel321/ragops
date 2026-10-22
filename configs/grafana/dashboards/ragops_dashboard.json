@@ -721,7 +721,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(ragops_request_latency_seconds_bucket[5m])) by (le))",
+          "expr": "(histogram_quantile(0.50, sum(rate(ragops_request_latency_seconds_bucket[5m])) by (le))) or on() vector(0)",
           "legendFormat": "P50 Latency",
           "range": true,
           "refId": "A"
@@ -732,7 +732,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.90, sum(rate(ragops_request_latency_seconds_bucket[5m])) by (le))",
+          "expr": "(histogram_quantile(0.90, sum(rate(ragops_request_latency_seconds_bucket[5m])) by (le))) or on() vector(0)",
           "legendFormat": "P90 Latency",
           "range": true,
           "refId": "B"
@@ -743,7 +743,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(ragops_request_latency_seconds_bucket[5m])) by (le))",
+          "expr": "(histogram_quantile(0.99, sum(rate(ragops_request_latency_seconds_bucket[5m])) by (le))) or on() vector(0)",
           "legendFormat": "P99 Latency",
           "range": true,
           "refId": "C"
@@ -754,7 +754,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(ragops_request_latency_seconds_sum[5m]) / rate(ragops_request_latency_seconds_count[5m])",
+          "expr": "ragops_request_latency_seconds_sum / (ragops_request_latency_seconds_count > 0)",
           "legendFormat": "Avg Latency",
           "range": true,
           "refId": "D"
@@ -824,7 +824,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(ragops_token_cost_usd_total[5m])) * 3600",
+          "expr": "(sum(rate(ragops_token_cost_usd_total[5m])) * 3600) or on() vector(0)",
           "legendFormat": "Cost Rate ($/hour)",
           "range": true,
           "refId": "A"
@@ -835,7 +835,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (token_type) (rate(ragops_tokens_total[5m]))",
+          "expr": "(sum by (token_type) (rate(ragops_tokens_total[5m]))) or on() vector(0)",
           "legendFormat": "Tokens / sec ({{token_type}})",
           "range": true,
           "refId": "B"
@@ -1018,7 +1018,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (version_id) (rate(ragops_requests_total[5m]))",
+          "expr": "(sum by (version_id) (rate(ragops_requests_total[5m]))) or on() vector(0)",
           "legendFormat": "Traffic Version: {{version_id}}",
           "range": true,
           "refId": "A"
