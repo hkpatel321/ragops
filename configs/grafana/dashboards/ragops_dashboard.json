@@ -110,10 +110,10 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": ["lastNotNull"],
-          "fields": "/version_id/",
+          "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "textMode": "name"
       },
       "pluginVersion": "10.0.0",
       "targets": [

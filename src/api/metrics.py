@@ -177,6 +177,26 @@ def sync_eval_and_index_metrics() -> None:
         except Exception as e:
             logger.debug(f"Failed to sync eval report metrics: {e}")
 
+    # 3. Initialize baseline drift and staleness gauges
+    try:
+        from src.monitoring.embedding_drift import (
+            EMBEDDING_DISTANCE_SHIFT,
+            EMBEDDING_DRIFT_DETECTED,
+            EMBEDDING_DRIFT_SCORE,
+        )
+        from src.monitoring.kb_drift import KB_INDEX_STALE
+
+        EMBEDDING_DRIFT_SCORE.labels(embedding_type="query").set(0.0)
+        EMBEDDING_DRIFT_SCORE.labels(embedding_type="doc").set(0.0)
+        EMBEDDING_DISTANCE_SHIFT.labels(embedding_type="query").set(0.0)
+        EMBEDDING_DISTANCE_SHIFT.labels(embedding_type="doc").set(0.0)
+        EMBEDDING_DRIFT_DETECTED.labels(embedding_type="query").set(0.0)
+        EMBEDDING_DRIFT_DETECTED.labels(embedding_type="doc").set(0.0)
+        KB_INDEX_STALE.labels(data_version="v1").set(0.0)
+        KB_INDEX_STALE.labels(data_version="v2").set(0.0)
+    except Exception as e:
+        logger.debug(f"Failed to initialize drift gauges: {e}")
+
 
 # Initialize defaults on module import
 sync_eval_and_index_metrics()
