@@ -426,7 +426,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(ragops_token_cost_usd_total)",
+          "expr": "sum(ragops_token_cost_usd_total) or vector(0)",
           "legendFormat": "Total Cost",
           "range": true,
           "refId": "A"

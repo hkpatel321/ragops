@@ -39,6 +39,7 @@ services:
     volumes:
       - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./configs/prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml:ro
+      - prometheus-data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -67,4 +68,5 @@ services:
 
 volumes:
   mlflow-data:
+  prometheus-data:
 
